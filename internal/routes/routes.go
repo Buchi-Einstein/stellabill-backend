@@ -131,13 +131,6 @@ func Register(r *gin.Engine) {
 		adapter := reconciliation.NewMemoryAdapter()
 		reconStore := reconciliation.NewMemoryStore()
 		admin.POST("/reconcile", auth.RequirePermission(auth.PermManageSubscriptions), handlers.NewReconcileHandler(adapter, reconStore))
-		admin.GET("/reports", auth.RequirePermission(auth.PermManageSubscriptions), func(c *gin.Context) {
-			reports, err := reconStore.ListReports()
-			if err != nil {
-				c.JSON(500, gin.H{"error": "failed to load reports"})
-				return
-			}
-			c.JSON(200, gin.H{"reports": reports})
-		})
+		admin.GET("/reports", auth.RequirePermission(auth.PermReadReconciliation), handlers.NewListReportsHandler(reconStore))
 	}
 }
