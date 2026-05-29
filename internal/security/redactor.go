@@ -55,7 +55,7 @@ func MaskPII(input string) string {
 		keywords = append(keywords, k)
 	}
 	pattern := strings.Join(keywords, "|")
-	re := regexp.MustCompile(fmt.Sprintf(`(?i)\b(%s)([-_]?)([a-zA-Z0-9]*)\b`, pattern))
+	re := regexp.MustCompile(fmt.Sprintf(`(?i)\b(%s)([-_]?)([a-zA-Z0-9_]*)\b`, pattern))
 	
 	result := re.ReplaceAllStringFunc(input, func(match string) string {
 		groups := re.FindStringSubmatch(match)
@@ -91,6 +91,21 @@ func MaskPII(input string) string {
 				return masker(prefix)
 			}
 			return match
+		}
+
+		// If there is no separator, the ID must contain at least one digit to be considered a valid ID
+		// (prevents plurals like "subscriptions" or "customers" from matching).
+		if sep == "" && id != "" {
+			hasDigit := false
+			for _, r := range id {
+				if r >= '0' && r <= '9' {
+					hasDigit = true
+					break
+				}
+			}
+			if !hasDigit {
+				return match
+			}
 		}
 
 		// Normalize prefixes

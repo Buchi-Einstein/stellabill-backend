@@ -148,7 +148,10 @@ func NewGetSubscriptionHandler(svc service.SubscriptionService) gin.HandlerFunc 
 			return
 		}
 
-		tenantID := c.GetString("tenantID")
+		tenantID, ok := getRequiredStringContextValue(c, "tenantID", "Missing tenant context")
+		if !ok {
+			return
+		}
 		// Delegate to service (note: real implementation may include ownership checks)
 		detail, _, err := svc.GetDetail(c.Request.Context(), tenantID, callerID.(string), id)
 		if err != nil {
