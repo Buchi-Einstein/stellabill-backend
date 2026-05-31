@@ -88,6 +88,8 @@ type Config struct {
 	RateLimitRPS       int
 	RateLimitBurst     int
 	RateLimitWhitelist []string
+	// Metrics configuration
+	MetricsAllowedCIDRs []string
 	// Tracing configuration
 	TracingExporter        string
 	TracingServiceName     string
@@ -218,32 +220,29 @@ func Load(opts ...Option) (Config, error) {
 	}
 
 	cfg := Config{
-		Env:                                 getEnv("ENV", "development"),
-		Port:                                DefaultPort,
-		DBConn:                              "",
-		JWTSecret:                           "",
-		JWKSURL:                             getEnv("JWKS_URL", ""),
-		MaxHeaderBytes:                      MaxHeaderBytes,
-		MaxRequestSize:                      getEnvInt64("MAX_REQUEST_SIZE", DefaultMaxRequestSize),
-		MaxGzipUncompressed:                 getEnvInt64("MAX_GZIP_UNCOMPRESSED", DefaultMaxGzipUncompressed),
-		MaxGzipRatio:                        getEnvFloat64("MAX_GZIP_RATIO", DefaultMaxGzipRatio),
-		ReadTimeout:                         DefaultReadTimeout,
-		WriteTimeout:                        DefaultWriteTimeout,
-		IdleTimeout:                         DefaultIdleTimeout,
-		TracingExporter:                     getEnv("TRACING_EXPORTER", "stdout"),
-		TracingServiceName:                  getEnv("TRACING_SERVICE_NAME", "stellabill-backend"),
-		AllowedOrigins:                      getEnv("ALLOWED_ORIGINS", ""),
-		SecurityFrameAncestors:              getEnv("SECURITY_FRAME_ANCESTORS", "'none'"),
-		DBPoolMaxConns:                      DefaultDBPoolMaxConns,
-		DBPoolMinConns:                      DefaultDBPoolMinConns,
-		DBPoolMaxConnLifetime:               DefaultDBPoolMaxConnLifetime,
-		DBPoolMaxConnIdleTime:               DefaultDBPoolMaxConnIdleTime,
-		DBPoolConnectTimeout:                DefaultDBPoolConnectTimeout,
-		DBPoolHealthCheckPeriod:             DefaultDBPoolHealthCheckPeriod,
-		DBPoolMetricsInterval:               DefaultDBPoolMetricsInterval,
-		DBCircuitBreakerMaxFailures:         5,
-		DBCircuitBreakerTimeoutSeconds:      30,
-		DBCircuitBreakerHalfOpenMaxRequests: 1,
+		Env:                     getEnv("ENV", "development"),
+		Port:                    DefaultPort,
+		DBConn:                  "",
+		JWTSecret:               "",
+		JWKSURL:                 getEnv("JWKS_URL", ""),
+		MaxHeaderBytes:          MaxHeaderBytes,
+		MaxRequestSize:          getEnvInt64("MAX_REQUEST_SIZE", DefaultMaxRequestSize),
+		MaxGzipUncompressed:     getEnvInt64("MAX_GZIP_UNCOMPRESSED", DefaultMaxGzipUncompressed),
+		MaxGzipRatio:            getEnvFloat64("MAX_GZIP_RATIO", DefaultMaxGzipRatio),
+		ReadTimeout:             DefaultReadTimeout,
+		WriteTimeout:            DefaultWriteTimeout,
+		IdleTimeout:             DefaultIdleTimeout,
+		TracingExporter:         getEnv("TRACING_EXPORTER", "stdout"),
+		TracingServiceName:      getEnv("TRACING_SERVICE_NAME", "stellabill-backend"),
+		AllowedOrigins:          getEnv("ALLOWED_ORIGINS", ""),
+		SecurityFrameAncestors:  getEnv("SECURITY_FRAME_ANCESTORS", "'none'"),
+		DBPoolMaxConns:          DefaultDBPoolMaxConns,
+		DBPoolMinConns:          DefaultDBPoolMinConns,
+		DBPoolMaxConnLifetime:   DefaultDBPoolMaxConnLifetime,
+		DBPoolMaxConnIdleTime:   DefaultDBPoolMaxConnIdleTime,
+		DBPoolConnectTimeout:    DefaultDBPoolConnectTimeout,
+		DBPoolHealthCheckPeriod: DefaultDBPoolHealthCheckPeriod,
+		DBPoolMetricsInterval:   DefaultDBPoolMetricsInterval,
 	}
 
 	// Resolve secrets through the provider
@@ -532,6 +531,27 @@ func (c *Config) validate(resolvedSecrets map[string]string, secretErrs map[stri
 		c.RateLimitWhitelist = paths
 	} else {
 		c.RateLimitWhitelist = []string{"/api/health"} // Only health check whitelisted by default
+	}
+	// Validate and set MetricsAllowedCIDRs
+	if cidrs := os.Getenv("METRICS_ALLOWED_CIDRS"); cidrs != "" {
+		parts := strings.Split(cidrs, ",")
+		var allowed []string
+		for _, part := range parts {
+			clean := strings.TrimSpace(part)
+			if clean != "" {
+				allowed = append(allowed, clean)
+			}
+		}
+		c.MetricsAllowedCIDRs = allowed
+	} else {
+		// Default to private/internal IP ranges
+		c.MetricsAllowedCIDRs = []string{
+			"127.0.0.0/8",
+			"10.0.0.0/8",
+			"172.16.0.0/12",
+			"192.168.0.0/16",
+			"::1/128",
+		}
 	}
 
 	// Validate TRACING_EXPORTER
