@@ -2,6 +2,7 @@ package routes
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"stellarbill-backend/internal/handlers"
 	"stellarbill-backend/internal/metrics"
 	"stellarbill-backend/internal/middleware"
+	"stellarbill-backend/internal/outbox"
 	"stellarbill-backend/internal/reconciliation"
 	"stellarbill-backend/internal/repository"
 	"stellarbill-backend/internal/service"
@@ -131,6 +133,17 @@ func RegisterWithCleanup(r *gin.Engine) func(context.Context) error {
 
 	// Create handlers
 	h := handlers.NewHandlerWithDependencies(handlerPlanSvc, handlerSubSvc, dbPool, nil)
+	// Set up outbox repository if db is available
+	if dbPool != nil {
+		var sqlDB *sql.DB
+		// Try to get *sql.DB from dbPool (which is *pgxpool.Pool)
+		if d, ok := dbPool.(interface{ Config() *pgxpool.Config }); ok {
+			// Alternatively, we can open a *sql.DB via lib/pq
+			connStr := d.Config().ConnString()
+			sqlDB, _ = sql.Open("postgres", connStr)
+			h.OutboxRepo = outbox.NewPostgresRepository(sqlDB)
+		}
+	}
 
 	// Admin handler receives the cached repos so PurgeCache can invalidate them.
 	adminToken := os.Getenv("ADMIN_TOKEN")
@@ -205,6 +218,10 @@ func RegisterWithCleanup(r *gin.Engine) func(context.Context) error {
 		reconStore := reconciliation.NewMemoryStore()
 		admin.POST("/reconcile", auth.RequirePermission(auth.PermManageSubscriptions), idemMiddleware, handlers.NewReconcileHandler(adapter, reconStore))
 		admin.GET("/reports", auth.RequirePermission(auth.PermReadReconciliation), handlers.NewListReportsHandler(reconStore))
+
+		// Outbox dead-letter endpoints
+		admin.GET("/outbox/dead-letter", auth.RequirePermission(auth.PermManageReconciliation), h.ListDeadLetteredEvents)
+		admin.POST("/outbox/:id/requeue", auth.RequirePermission(auth.PermManageReconciliation), idemMiddleware, h.RequeueOutboxEvent)
 	}
 
 	return func(ctx context.Context) error {
