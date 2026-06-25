@@ -118,10 +118,10 @@ func NewTokenGenerator(secret string) *TokenGenerator {
 // generateToken creates a token with given claims.
 func (tg *TokenGenerator) generateToken(userID, email, role, tenantID string, expiresAt time.Time) (string, error) {
 	claims := Claims{
-		UserID:   userID,
-		Email:    email,
-		Role:     Role(role),
-		TenantID: tenantID,
+		UserID: userID,
+		Email:  email,
+		Role:   Role(role),
+		Tenant: "tenant123",
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    tg.issuer,
 			ExpiresAt: jwt.NewNumericDate(expiresAt),

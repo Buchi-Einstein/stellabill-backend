@@ -41,6 +41,11 @@ func (h *Handler) ListPlans(c *gin.Context) {
 		c.Request = c.Request.WithContext(ctx)
 	}
 
+	if h.Plans == nil {
+		RespondWithError(c, http.StatusServiceUnavailable, ErrorCodeServiceUnavailable, "plan service is unavailable")
+		return
+	}
+
 	limitStr := c.Query("limit")
 	if limitStr != "" {
 		if rawLimit, err := strconv.Atoi(limitStr); err == nil && rawLimit > 100 {

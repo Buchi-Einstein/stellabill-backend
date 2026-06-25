@@ -28,7 +28,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
-
 // Register configures all routes on the provided router.
 func Register(r *gin.Engine) {
 	_ = RegisterWithCleanup(r)
@@ -82,10 +81,7 @@ func RegisterWithCleanup(r *gin.Engine) func(context.Context) error {
 	// and we degrade gracefully to in-memory dependencies below.
 	var dbPool *pgxpool.Pool
 	var planDB *sql.DB
-	var replicaDB *sql.DB
-	var routerDB db.DBTX
-
-	if cfg.DBConn != "" {
+	if cfg.DBConn != "" && os.Getenv("MOCK_DB") != "true" {
 		poolConfig, err := pgxpool.ParseConfig(cfg.DBConn)
 		if err != nil {
 			fmt.Printf("Failed to parse database pool config: %v\n", err)
@@ -177,9 +173,9 @@ func RegisterWithCleanup(r *gin.Engine) func(context.Context) error {
 		}
 	}
 	rawSubRepo := repository.NewMockSubscriptionRepo(
-		&repository.SubscriptionRow{ID: "sub-123", TenantID: "", CustomerID: "c1", Status: "active", PlanID: "p1", Amount: "1999", Currency: "USD", Interval: "monthly"},
-		&repository.SubscriptionRow{ID: "sub-456", TenantID: "", CustomerID: "c2", Status: "active", PlanID: "p1", Amount: "1999", Currency: "USD", Interval: "monthly"},
-		&repository.SubscriptionRow{ID: "test123", TenantID: "", CustomerID: "c3", Status: "active", PlanID: "p1", Amount: "1999", Currency: "USD", Interval: "monthly"},
+		&repository.SubscriptionRow{ID: "sub-123", TenantID: "", CustomerID: "c1", Status: "active", PlanID: "p1", Amount: "10.00", Interval: "monthly"},
+		&repository.SubscriptionRow{ID: "sub-456", TenantID: "", CustomerID: "c2", Status: "active", PlanID: "p1", Amount: "20.50", Interval: "yearly"},
+		&repository.SubscriptionRow{ID: "test123", TenantID: "", CustomerID: "c3", Status: "active", PlanID: "p1", Amount: "15.00", Interval: "monthly"},
 	)
 
 	cachedPlanRepo := repository.NewCachedPlanRepo(rawPlanRepo, planCache, repoCacheTTL)
@@ -241,8 +237,8 @@ func RegisterWithCleanup(r *gin.Engine) func(context.Context) error {
 		v1.GET("/subscriptions/:id", auth.RequirePermission(auth.PermReadSubscriptions), h.GetSubscription)
 		v1.POST("/subscriptions/:id/status", auth.RequirePermission(auth.PermManageSubscriptions), handlers.NewChangeSubscriptionStatusHandler(svc))
 		v1.GET("/plans", auth.RequirePermission(auth.PermReadPlans), h.ListPlans)
-		v1.GET("/statements/:id", handlers.NewGetStatementHandler(stmtSvc))
-		v1.GET("/statements", handlers.NewListStatementsHandler(stmtSvc))
+		v1.GET("/statements/:id", auth.RequirePermission(auth.PermReadSubscriptions), handlers.NewGetStatementHandler(stmtSvc))
+		v1.GET("/statements", auth.RequirePermission(auth.PermReadSubscriptions), handlers.NewListStatementsHandler(stmtSvc))
 
 		// Fees module (#162)
 		v1.GET("/fees/history", feesHandler.GetFeeHistory)
@@ -283,8 +279,8 @@ func RegisterWithCleanup(r *gin.Engine) func(context.Context) error {
 			handlers.NewChangeSubscriptionStatusHandler(svc),
 		)
 
-		apiProtected.GET("/statements/:id", handlers.NewGetStatementHandler(stmtSvc))
-		apiProtected.GET("/statements", handlers.NewListStatementsHandler(stmtSvc))
+		apiProtected.GET("/statements/:id", auth.RequirePermission(auth.PermReadSubscriptions), handlers.NewGetStatementHandler(stmtSvc))
+		apiProtected.GET("/statements", auth.RequirePermission(auth.PermReadSubscriptions), handlers.NewListStatementsHandler(stmtSvc))
 	}
 
 	admin := api.Group("/admin")
@@ -301,28 +297,9 @@ func RegisterWithCleanup(r *gin.Engine) func(context.Context) error {
 		admin.POST("/reconcile", auth.RequirePermission(auth.PermManageSubscriptions), idemMiddleware, handlers.NewReconcileHandler(adapter, reconStore))
 		admin.GET("/reports", auth.RequirePermission(auth.PermReadReconciliation), handlers.NewListReportsHandler(reconStore))
 
-		// Statement S3 export — admin or owning merchant only
-		admin.POST("/statements/export", auth.RequirePermission(auth.PermManageSubscriptions), handlers.NewExportStatementsHandler(stmtSvc, nil))
-	}
-
-
-	return func(ctx context.Context) error {
-		if dbPool != nil {
-			log.Printf("closing database pool")
-			dbPool.Close()
-		}
-
-		if tracerShutdown != nil {
-			log.Printf("flushing tracer")
-			if err := tracerShutdown(ctx); err != nil {
-				return fmt.Errorf("shutdown tracer: %w", err)
-			}
-		}
-
-		return nil
-	// Feature flags endpoints
-	admin.GET("/feature-flags", auth.RequirePermission(auth.PermManageSubscriptions), featureFlagsHandler.GetFeatureFlags)
-	admin.PATCH("/feature-flags", auth.RequirePermission(auth.PermManageSubscriptions), idemMiddleware, featureFlagsHandler.ToggleFeatureFlag)
+		// Feature flags endpoints
+		admin.GET("/feature-flags", auth.RequirePermission(auth.PermManageSubscriptions), featureFlagsHandler.GetFeatureFlags)
+		admin.PATCH("/feature-flags", auth.RequirePermission(auth.PermManageSubscriptions), idemMiddleware, featureFlagsHandler.ToggleFeatureFlag)
 	}
 
 	return func(ctx context.Context) error {

@@ -20,15 +20,15 @@ var exemptedRoutes = map[string]map[string]string{
 		"/api/v1/health":             "Internal health endpoint registered under v1, not part of public API",
 		"/api/v1/subscriptions":      "Legacy/alias endpoint mapping, primary documented path is /api/subscriptions",
 		"/api/v1/subscriptions/{id}": "Legacy/alias endpoint mapping, primary documented path is /api/subscriptions/{id}",
-		"/api/plans":                 "Legacy/alias endpoint mapping, primary documented path is /api/v1/plans",
-		"/api/statements":            "Legacy/alias endpoint mapping, not yet exposed in public client spec",
-		"/api/v1/statements":         "Legacy/alias endpoint mapping, not yet exposed in public client spec",
-		"/api/statements/{id}":       "Legacy/alias endpoint mapping, not yet exposed in public client spec",
-		"/api/v1/statements/{id}":    "Legacy/alias endpoint mapping, not yet exposed in public client spec",
-		"/api/admin/diagnostics":     "Internal diagnostic logs endpoint, requires strict admin tokens",
-		"/api/admin/reports":         "Internal reconciliation reports, operational use only",
-		"/api/admin/feature-flags":   "Admin feature flags list, operational use only",
-		"/api/metrics":               "Prometheus metrics endpoint for monitoring",
+		"/api/plans":              "Legacy/alias endpoint mapping, primary documented path is /api/v1/plans",
+		"/api/statements":         "Legacy/alias endpoint mapping, not yet exposed in public client spec",
+		"/api/v1/statements":      "Legacy/alias endpoint mapping, not yet exposed in public client spec",
+		"/api/statements/{id}":    "Legacy/alias endpoint mapping, not yet exposed in public client spec",
+		"/api/v1/statements/{id}": "Legacy/alias endpoint mapping, not yet exposed in public client spec",
+		"/api/admin/diagnostics":  "Internal diagnostic logs endpoint, requires strict admin tokens",
+		"/api/admin/reports":      "Internal reconciliation reports, operational use only",
+		"/api/admin/feature-flags": "Internal feature flags endpoint",
+		"/api/metrics":            "Metrics endpoint",
 	},
 	"POST": {
 		"/api/subscriptions/{id}/status":    "Legacy status transition endpoint, not yet exposed in public spec",
@@ -37,7 +37,7 @@ var exemptedRoutes = map[string]map[string]string{
 		"/api/admin/reconcile":              "Internal reconciliation trigger, operational use only",
 	},
 	"PATCH": {
-		"/api/admin/feature-flags": "Admin feature flags toggle endpoint, operational use only",
+		"/api/admin/feature-flags": "Internal feature flags endpoint",
 	},
 }
 
@@ -83,7 +83,8 @@ func checkParity(routes []route, specPaths map[string]bool, exemptions map[strin
 // are properly represented in the OpenAPI spec.
 func TestRouteOpenAPIParity(t *testing.T) {
 	// Set mock environment variables so Register passes config load
-	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost/db")
+	os.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+	os.Setenv("MOCK_DB", "true")
 	os.Setenv("JWT_SECRET", "Test1!JwtSecret-MixedAlphaNumeric@123")
 	os.Setenv("ADMIN_TOKEN", "Admin1!Token-MixedAlphaNumeric@123")
 	defer os.Unsetenv("DATABASE_URL")

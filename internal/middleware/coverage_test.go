@@ -18,8 +18,8 @@ func TestCoverage_AuthMiddleware(t *testing.T) {
 	secret := "test-secret"
 	claims := jwt.MapClaims{
 		"sub":       "user-123",
+		"tenant_id": "tenant-123",
 		"exp":       time.Now().Add(time.Hour).Unix(),
-		"tenant_id": "tenant-1",
 	}
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenStr, err := tok.SignedString([]byte(secret))

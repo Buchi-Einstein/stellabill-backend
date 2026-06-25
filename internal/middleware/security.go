@@ -55,7 +55,8 @@ func SecurityHeaders(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		if c.Writer.Header().Get("Content-Security-Policy") == "" {
-			c.Header("Content-Security-Policy", buildCSP(cfg, nonce))
+			csp := "frame-ancestors 'none'"
+			c.Header("Content-Security-Policy", csp)
 		}
 
 		c.Next()

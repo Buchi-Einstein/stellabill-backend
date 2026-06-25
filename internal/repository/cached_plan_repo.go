@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"golang.org/x/sync/singleflight"
 	"time"
+
+	"golang.org/x/sync/singleflight"
 )
 
 type cacheEnvelope struct {
@@ -101,15 +103,17 @@ func (cpr *CachedPlanRepo) FindByID(ctx context.Context, id string) (*PlanRow, e
 	if err != nil {
 		return nil, err
 	}
-	// cache the result
+	
 	if cpr.cache != nil {
-		if b, err := json.Marshal(pr); err == nil {
-			env := cacheEnvelope{Data: b, StoredAt: time.Now()}
-			if eb, err := json.Marshal(env); err == nil {
-				_ = cpr.cache.Set(ctx, key, eb, cpr.ttl)
+		outBytes, marshalErr := json.Marshal(pr)
+		if marshalErr == nil {
+			env := cacheEnvelope{Data: outBytes, StoredAt: time.Now()}
+			if envBytes, marshalErr := json.Marshal(env); marshalErr == nil {
+				_ = cpr.cache.Set(ctx, key, envBytes, cpr.ttl)
 			}
 		}
 	}
+	
 	return pr, nil
 }
 
@@ -132,11 +136,26 @@ func (cpr *CachedPlanRepo) List(ctx context.Context) ([]*PlanRow, error) {
 					}
 				}
 			}
+			if stale {
+				atomic.AddUint64(&cpr.stales, 1)
+				_ = cpr.cache.Delete(ctx, key)
+			} else {
+				var out []*PlanRow
+				if unmarshalErr := json.Unmarshal(env.Data, &out); unmarshalErr == nil {
+					atomic.AddUint64(&cpr.hits, 1)
+					return out, nil
+				} else {
+					return nil, fmt.Errorf("corrupted cache data: %w", unmarshalErr)
+				}
+			}
 		}
 	}
 
 	atomic.AddUint64(&cpr.misses, 1)
 	out, err := cpr.backend.List(ctx)
+	load.row = out
+	load.err = err
+	
 	if err != nil {
 		return nil, err
 	}

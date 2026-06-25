@@ -15,8 +15,8 @@ import (
 
 func TestAuthMiddleware_MissingAuthorizationHeader(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 	router.GET("/test", func(c *gin.Context) {
@@ -34,8 +34,8 @@ func TestAuthMiddleware_MissingAuthorizationHeader(t *testing.T) {
 
 func TestAuthMiddleware_InvalidAuthorizationFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 	router.GET("/test", func(c *gin.Context) {
@@ -54,8 +54,8 @@ func TestAuthMiddleware_InvalidAuthorizationFormat(t *testing.T) {
 
 func TestAuthMiddleware_TokenValidationFailure(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 	router.GET("/test", func(c *gin.Context) {
@@ -74,8 +74,8 @@ func TestAuthMiddleware_TokenValidationFailure(t *testing.T) {
 
 func TestAuthMiddleware_InvalidTokenClaims(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 	router.GET("/test", func(c *gin.Context) {
@@ -101,8 +101,8 @@ func TestAuthMiddleware_InvalidTokenClaims(t *testing.T) {
 
 func TestAuthMiddleware_MissingSubjectClaim(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 	router.GET("/test", func(c *gin.Context) {
@@ -129,8 +129,8 @@ func TestAuthMiddleware_MissingSubjectClaim(t *testing.T) {
 
 func TestAuthMiddleware_MissingTenantID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 	router.GET("/test", func(c *gin.Context) {
@@ -157,8 +157,8 @@ func TestAuthMiddleware_MissingTenantID(t *testing.T) {
 
 func TestAuthMiddleware_TenantMismatch(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 	router.GET("/test", func(c *gin.Context) {
@@ -187,8 +187,8 @@ func TestAuthMiddleware_TenantMismatch(t *testing.T) {
 
 func TestAuthMiddleware_SuccessWithRolesArray(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -237,8 +237,8 @@ func TestAuthMiddleware_SuccessWithRolesArray(t *testing.T) {
 
 func TestAuthMiddleware_SuccessWithSingleRole(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -291,8 +291,8 @@ func TestAuthMiddleware_SuccessWithSingleRole(t *testing.T) {
 
 func TestAuthMiddleware_SuccessWithEmptyRoles(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -340,8 +340,8 @@ func TestAuthMiddleware_SuccessWithEmptyRoles(t *testing.T) {
 
 func TestAuthMiddleware_SuccessWithMultipleRoles(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -378,8 +378,8 @@ func TestAuthMiddleware_SuccessWithMultipleRoles(t *testing.T) {
 
 func TestAuthMiddleware_UnknownRoleString(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -421,8 +421,8 @@ func TestAuthMiddleware_UnknownRoleString(t *testing.T) {
 
 func TestAuthMiddleware_ClaimsProjectionVerification(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -437,18 +437,10 @@ func TestAuthMiddleware_ClaimsProjectionVerification(t *testing.T) {
 			t.Error("expected roles to be set in context")
 		}
 		capturedRoles = rolesValue.([]auth.Role)
-
-		if v, ok := c.Get("callerID"); ok {
-			if s, ok2 := v.(string); ok2 {
-				capturedCallerID = s
-			}
-		}
-		if v, ok := c.Get("tenantID"); ok {
-			if s, ok2 := v.(string); ok2 {
-				capturedTenantID = s
-			}
-		}
-
+		
+		capturedCallerID = c.GetString("callerID")
+		capturedTenantID = c.GetString("tenantID")
+		
 		c.JSON(http.StatusOK, gin.H{"message": "success"})
 	})
 
@@ -486,8 +478,8 @@ func TestAuthMiddleware_ClaimsProjectionVerification(t *testing.T) {
 
 func TestAuthMiddleware_TenantIDFromClaimOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -524,8 +516,8 @@ func TestAuthMiddleware_TenantIDFromClaimOnly(t *testing.T) {
 
 func TestAuthMiddleware_TenantIDFromHeaderOnly(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -562,8 +554,8 @@ func TestAuthMiddleware_TenantIDFromHeaderOnly(t *testing.T) {
 
 func TestAuthMiddleware_RolesDeduplication(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -601,8 +593,8 @@ func TestAuthMiddleware_RolesDeduplication(t *testing.T) {
 
 func TestAuthMiddleware_RoleWhitespaceTrimming(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -701,8 +693,8 @@ func TestInitJWKSCache(t *testing.T) {
 
 func TestAuthMiddleware_UUIDCallerID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -740,8 +732,8 @@ func TestAuthMiddleware_UUIDCallerID(t *testing.T) {
 
 func TestAuthMiddleware_TenantClaimFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
@@ -778,8 +770,8 @@ func TestAuthMiddleware_TenantClaimFallback(t *testing.T) {
 
 func TestAuthMiddleware_RolesWithEmptyStrings(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-
-	middleware := AuthMiddleware(nil, "")
+	
+	middleware := AuthMiddleware(nil, "test-secret")
 	router := gin.New()
 	router.Use(middleware)
 
