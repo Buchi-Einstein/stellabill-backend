@@ -284,6 +284,28 @@ func RegisterWithCleanup(r *gin.Engine) func(context.Context) error {
 		admin.POST("/reconcile", auth.RequirePermission(auth.PermManageSubscriptions), idemMiddleware, handlers.NewReconcileHandler(adapter, reconStore))
 		admin.GET("/reports", auth.RequirePermission(auth.PermReadReconciliation), handlers.NewListReportsHandler(reconStore))
 
+		// Statement S3 export — admin or owning merchant only
+		admin.POST("/statements/export", auth.RequirePermission(auth.PermManageSubscriptions), handlers.NewExportStatementsHandler(stmtSvc, nil))
+	}
+
+
+	return func(ctx context.Context) error {
+		if dbPool != nil {
+			log.Printf("closing database pool")
+			dbPool.Close()
+		}
+
+		if tracerShutdown != nil {
+			log.Printf("flushing tracer")
+			if err := tracerShutdown(ctx); err != nil {
+				return fmt.Errorf("shutdown tracer: %w", err)
+			}
+		}
+
+		return nil
+	}
+}
+
 		// Feature flags endpoints
 		admin.GET("/feature-flags", auth.RequirePermission(auth.PermManageSubscriptions), featureFlagsHandler.GetFeatureFlags)
 		admin.PATCH("/feature-flags", auth.RequirePermission(auth.PermManageSubscriptions), idemMiddleware, featureFlagsHandler.ToggleFeatureFlag)
